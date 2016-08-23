@@ -1,0 +1,19 @@
+#!/bin/bash
+
+if [ -e ./.server-pid ]; then
+    pid=`cat ./.server-pid`
+    pname=`ps -p ${pid} -o comm=`
+    if [ "$pname" = "python" ]; then
+        echo "Killing old server"
+        kill $pid
+    fi
+fi
+
+
+
+cd dist
+python -m SimpleHTTPServer 8000 > ../.server-log 2>&1 &
+echo "[$!]"
+echo $! > ../.server-pid
+
+

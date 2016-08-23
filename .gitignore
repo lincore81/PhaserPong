@@ -1,0 +1,9 @@
+# vim loves to create backups etc:
+*~
+.*~
+**/*~
+**/.*~
+**/.*\.swp
+.server-log
+.server-pid
+node_modules/

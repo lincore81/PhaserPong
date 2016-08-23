@@ -1,0 +1,23 @@
+{
+  "name": "pong",
+  "version": "0.0.1",
+  "description": "it's pong",
+  "main": "src/main.js",
+  "watch": {
+    "build": "src/*.js"
+  },
+  "scripts": {
+    "lint":  "jshint src/*.js",
+    "build": "(jshint src/*.js && browserify -e src/main.js -do dist/js/game.js) || echo -e \"\bError.\"",
+    "watch": "npm-watch",
+    "test":  "tape"
+  },
+  "author": "Dominik Rosehnal",
+  "license": "MIT",
+  "devDependencies": {
+    "browserify": "^13.0.1",
+    "jshint": "^2.9.2",
+    "lodash": "^4.12.0",
+    "tape": "^4.5.1"
+  }
+}
