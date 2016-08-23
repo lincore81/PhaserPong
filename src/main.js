@@ -34,8 +34,10 @@ function main() {
     var pong = {};
     pong.pause = false;
     var state = {preload: preload, create: create, update: update, render: render};
+    pong.state = state;
     pong.game = new Phaser.Game(800, 480, Phaser.CANVAS, 'pong', state);
     pong.controllers = [];
+    pong.debug = false;
     window.pong = pong;
     window.game = pong.game;
     return pong;
@@ -61,7 +63,7 @@ function create() {
     pong.sfx.paddlehit = game.add.audio('paddlehit');
     pong.sfx.out = game.add.audio('out');
     pong.mute = false;
-    pong.speed = 6;
+    pong.speed = 8;
 
     var top = 2*pixel,
         bottom = game.height - 2*pixel,
@@ -72,7 +74,7 @@ function create() {
         paddle1 = new entities.Paddle(left, top, bottom, pong.textures.paddle, game);
     var scoreboard2 = new entities.Scoreboard(game.width/4*3 - 128, top, game),
         paddle2 = new entities.Paddle(right, top, bottom, pong.textures.paddle, game);
-    var c1 = new player.MouseWheelPlayer(paddle1, pong),
+    var c1 = new player.KeyboardPlayer(paddle1, pong),
         c2 = new player.GodPlayer(paddle2, pong);
 
     pong.player1 = {
@@ -113,6 +115,10 @@ function create() {
     game.input.onDown.add(function() {
         game.paused = !game.paused;
     });
+    var muteKey = game.input.keyboard.addKey(Phaser.Keyboard.M);
+    muteKey.onDown.add(function(key) {
+        pong.mute = !pong.mute;
+    });
 }
 //1}}}
 
@@ -127,7 +133,7 @@ function update() {
     var hitInfo = hitTest();
     if (hitInfo) {
         collision = hitInfo;
-        console.log(hitInfo);
+        //console.log(hitInfo);
         pong.ball.bounce(hitInfo);
         //game.paused = true;
         pong.playSound('paddlehit');
@@ -162,83 +168,57 @@ function hitTest() {
         player = pong.player1.side === dir? pong.player1 : pong.player2,
         ballSprite = pong.ball.sprite,
         paddleSprite = player.paddle.sprite;
-    var ballPath = new Phaser.Line(
-            ballSprite.x - pong.ball.velocity.x,
-            ballSprite.y - pong.ball.velocity.y,
-            ballSprite.x, ballSprite.y);
+    var ballPaths = [
+            new Phaser.Line(
+                ballSprite.left - pong.ball.velocity.x,
+                ballSprite.top - pong.ball.velocity.y,
+                ballSprite.left, ballSprite.top),
+            new Phaser.Line(
+                ballSprite.right - pong.ball.velocity.x,
+                ballSprite.top - pong.ball.velocity.y,
+                ballSprite.right, ballSprite.top),
+            new Phaser.Line(
+                ballSprite.right - pong.ball.velocity.x,
+                ballSprite.bottom - pong.ball.velocity.y,
+                ballSprite.right, ballSprite.bottom),
+            new Phaser.Line(
+                ballSprite.left - pong.ball.velocity.x,
+                ballSprite.bottom - pong.ball.velocity.y,
+                ballSprite.left, ballSprite.bottom)];
+
+
     var frontX = dir<0? paddleSprite.right : paddleSprite.left;
     var edge = new Phaser.Line(
             frontX, paddleSprite.top,
             frontX, paddleSprite.bottom);
     
-    var hit = ballPath.intersects(edge, true);
-    if (!hit) {
-        edge.start.set(paddleSprite.left, paddleSprite.top);
-        edge.end.set(paddleSprite.right, paddleSprite.top);
-        hit = ballPath.intersects(edge, true);
-        if (!hit) {
-            edge.start.set(paddleSprite.left, paddleSprite.bottom);
-            edge.end.set(paddleSprite.right, paddleSprite.bottom);
-            hit = ballPath.intersects(edge, true);
-        }
+    var result;
+    for (var i = 0; i < ballPaths.length; i++) {
+        result = testIntersection(ballPaths[i]);
+        if (result) return result; 
     }
-    return hit? {
-        side: 'front', 
-        dir: dir,
-        ballPath: ballPath, 
-        edge: edge,
-        hit: hit,
-        player: player
-    } : null;
+
+    function testIntersection(path) {
+        var hit = path.intersects(edge, true);
+        collision = {
+            side: 'front', 
+            dir: dir,
+            ballPath: path, 
+            edge: edge,
+            hit: hit,
+            player: player
+        };
+        return hit? collision : null;
+    }
 }
 //1}}}
 
-
-//{{{1 createTextures()
-function createTextures() {
-    var g = game.add.graphics(0, 0);
-    pong.textures = {};
-
-    // paddle:
-    g.beginFill(0xffffff);
-    g.drawRect(0, 0, pixel, 4*pixel);
-    g.endFill();
-    pong.textures.paddle = g.generateTexture();
-    g.clear();
-
-    // ball:
-    g.beginFill(0xffffff);
-    g.drawRect(0, 0, pixel, pixel);
-    g.endFill();
-    pong.textures.ball = g.generateTexture();
-    g.beginFill(0xffffff);
-    g.drawRect(pixel, pixel, pixel, pixel);
-    g.endFill();
-    pong.textures.ball_nwse = g.generateTexture();
-    g.clear();
-    g.beginFill(0xffffff);
-    g.drawRect(pixel, 0, pixel, pixel);
-    g.drawRect(0, pixel, pixel, pixel);
-    g.endFill();
-    pong.textures.ball_nesw = g.generateTexture();
-    g.clear();
-
-    // center line:
-    var l = 2*pixel;
-    var x = (game.width - pixel) / 2;
-    g.beginFill(0x999999);
-    for (var y = 0; y < game.height; y += l*2) {
-        g.drawRect(x, y, pixel, l);
-    }
-    g.endFill();
-    
-}
-// createTextures() 1}}}
 
 // render the frontal collision edge of both paddles
 var edge1 = new Phaser.Line(0, 0, 0, 0), 
     edge2 = new Phaser.Line(0, 0, 0, 0);
 function render() {
+    if (!pong.debug) return;
     function getEdge(paddleSprite, dir, out) {
         var frontX = dir<0? paddleSprite.right : paddleSprite.left;
         out.start.set(frontX, paddleSprite.top);
@@ -248,6 +228,24 @@ function render() {
     getEdge(pong.player2.paddle.sprite, pong.player2.side, edge2);
     game.debug.geom(edge1, '#ff00ff');
     game.debug.geom(edge2, '#ff00ff');
+    var mid1 = new Phaser.Line(
+            pong.player1.paddle.sprite.left, pong.player1.paddle.sprite.centerY,
+            pong.player1.paddle.sprite.right, pong.player1.paddle.sprite.centerY);
+    var mid2 = new Phaser.Line(
+            pong.player2.paddle.sprite.left, pong.player2.paddle.sprite.centerY,
+            pong.player2.paddle.sprite.right, pong.player2.paddle.sprite.centerY);
+
+    game.debug.geom(mid1, '#333333');
+    game.debug.geom(mid2, '#333333');
+
+    var top = 2*pixel,
+        bottom = game.height - 2*pixel,
+        left = 0,
+        right = game.width;
+    game.debug.geom(new Phaser.Line(left, top, right, top), '0xfff');
+    game.debug.geom(new Phaser.Line(left, bottom, right, bottom), '0xfff');
+
+    game.debug.geom(pong.ball.sprite.getBounds(), '#ff0');
 
     if (!collision) return;
     game.debug.geom(collision.edge, '#00ff00');
@@ -255,3 +253,38 @@ function render() {
     game.debug.geom(collision.hit, '#ff0000');
 
 }
+
+
+//{{{1 createTextures()
+function createTextures() {
+    pong.textures = {};
+
+    // paddle:
+    var g = game.add.graphics(0, 0);
+    g.beginFill(0xffffff);
+    g.drawRect(0, 0, pixel, 4*pixel);
+    g.endFill();
+    pong.textures.paddle = g.generateTexture();
+    g.destroy();
+
+    // ball:
+    g = game.add.graphics(0, 0);
+    g.beginFill(0xffffff);
+    g.drawRect(0, 0, pixel, pixel);
+    g.endFill();
+    pong.textures.ball = g.generateTexture();
+    g.destroy();
+
+    // center line:
+    var x = (game.width - pixel) / 2;
+    g = game.add.graphics(x, 0);
+    var l = 2*pixel;
+    g.beginFill(0x999999);
+    for (var y = 0; y < game.height; y += l*2) {
+        g.drawRect(0, y, pixel, l);
+    }
+    g.endFill();
+    
+}
+// createTextures() 1}}}
+

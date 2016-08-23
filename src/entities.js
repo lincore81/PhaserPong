@@ -15,10 +15,10 @@ function fromAngle(degrees) {
  * @param x {number} The x position to create the paddle on
  */
 function Paddle(x, miny, maxy, texture, game) {
-    this.miny = miny;
-    this.maxy = maxy;
     this.sprite = game.add.sprite(x, (maxy-miny) / 2 + miny, texture);
     this.sprite.anchor.set(0.5, 0.5);
+    this.miny = miny + this.sprite.height/2;
+    this.maxy = maxy - this.sprite.height/2;
 }
 
 Paddle.prototype.destroy = function() {
@@ -26,8 +26,7 @@ Paddle.prototype.destroy = function() {
 };
 
 Paddle.prototype.move = function(dy) {
-    var maxy = this.maxy - this.sprite.height;
-    var y = Phaser.Math.clamp(this.sprite.y + dy, this.miny, maxy);
+    var y = Phaser.Math.clamp(this.sprite.y + dy, this.miny, this.maxy);
     this.sprite.y = y; 
 };
 
@@ -38,7 +37,7 @@ Paddle.prototype.reset = function() {
 
 Paddle.prototype.getReflection = function(hit) {
     var relativeY = this.sprite.centerY - hit.y;
-    var sign = relativeY > 0? +1 : -1;
+    var sign = relativeY > 0? -1 : +1;
     var left = Math.abs(relativeY);
     var angle = 0;
     while (left > 0.25 * this.sprite.height/2) {
@@ -113,20 +112,28 @@ function Ball(x, y, texture, pong) {
     this.sprite = game.add.sprite(x, y, texture);
     this.sprite.anchor.set(0.5, 0.5);
     this.speed = pong.speed;
+    this.miny = this.sprite.height/2;
+    this.maxy = pong.game.height - this.sprite.height/2 - 1;
     this.reset();
 }
 
 Ball.prototype.reset = function() {
+    var range = this.maxy - this.miny;
+    var miny = this.miny + range/5;
+    var maxy = this.maxy - range/5;
+    var y = Math.floor(Math.random() * (maxy - miny)) + miny;
     this.sprite.x = this.initialX;
-    this.sprite.y = this.initialY;
+    this.sprite.y = y;
     this.velocity = new Phaser.Point(0, 0);
 };
 
 Ball.prototype.serve = function(side) {
     if (!side) side = Math.round(Math.random())? +1 : -1;
-    this.sprite.reset(this.initialX, this.initialY);
+    var angle = Math.floor(Math.random() * 4) - 2;
+    if (angle < 0) angle--;
+    angle *= 45;
+    this.velocity = fromAngle(angle);
     this.velocity.x = side < 0? -1 : +1;
-    this.velocity.y = Math.random()*2 - 1;
     this.velocity.normalize().multiply(this.speed, this.speed);
 };
 
@@ -138,12 +145,9 @@ Ball.prototype.update = function() {
     this.sprite.x += this.velocity.x;
     this.sprite.y += this.velocity.y;
 
-    if (this.sprite.y < 0 || this.sprite.y >= this.sprite.game.height) {
+    if (this.sprite.y < this.miny || this.sprite.y > this.maxy) {
+        this.sprite.y = Phaser.Math.clamp(this.sprite.y, this.miny, this.maxy);
         this.pong.playSound('wallhit');
-        if (this.sprite.y < 0) 
-            this.sprite.y = 0.1;
-        else if (this.sprite.y >= this.sprite.game.height)
-            this.sprite.y = this.sprite.game.height - 1.1;
             
         this.velocity.y = -this.velocity.y;
         this.sprite.y += this.velocity.y;
@@ -173,7 +177,8 @@ Ball.prototype.bounce = function(hitInfo) {
     } else {
         var speed = this.velocity.getMagnitude();
         var degrees = hitInfo.player.paddle.getReflection(hitInfo.hit);
-        var vec = fromAngle(degrees).setMagnitude(speed * 1.05);
+        var speedFactor = degrees? 1.05 : 0.95;
+        var vec = fromAngle(degrees).setMagnitude(speed * speedFactor);
             if (this.velocity.x > 0) vec.x *= -1;
         this.velocity = vec;
     }

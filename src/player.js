@@ -1,7 +1,8 @@
 module.exports = {
     MouseWheelPlayer: MouseWheelPlayer,
     GodPlayer: GodPlayer,
-    ComputerPlayer: ComputerPlayer
+    ComputerPlayer: ComputerPlayer,
+    KeyboardPlayer: KeyboardPlayer
 };
 
 /**
@@ -50,6 +51,39 @@ MouseWheelPlayer.prototype.update = function() {
 };
 //1}}}
 
+
+/**
+ * {{{1 KeyboardPlayer
+ *
+ */
+function KeyboardPlayer(paddle, pong) {
+    this.paddle = paddle;
+    this.pong = pong;
+    this._enabled = false;
+}
+
+KeyboardPlayer.prototype.enable = function() {
+    if (this._enabled) return;
+    this._enabled = true;
+};
+
+KeyboardPlayer.prototype.disable = function() {
+    if (!this._enabled) return;
+    this._enabled = false;
+};
+
+KeyboardPlayer.prototype.update = function() {
+    if (!this._enabled) return;
+    var dy = 0;
+    if (this.pong.game.input.keyboard.isDown(Phaser.Keyboard.UP)) {
+        dy -= 10;
+    }
+    if (this.pong.game.input.keyboard.isDown(Phaser.Keyboard.DOWN)) {
+        dy += 10; 
+    }
+    this.paddle.move(dy);
+};
+//1}}}
 
 /**
  * {{{1 GodPlayer
