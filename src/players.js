@@ -1,3 +1,4 @@
+"use strict";
 module.exports = {
     MouseWheelPlayer: MouseWheelPlayer,
     GodPlayer: GodPlayer,
@@ -15,9 +16,9 @@ function MouseWheelPlayer(paddle, pong) {
     this._enabled = false;
     this.wheelListener = (function(event) {
         if (this.pong.paused) return;
-        if (game.input.mouse.wheelDelta === Phaser.Mouse.WHEEL_UP) {
+        if (pong.game.input.mouse.wheelDelta === Phaser.Mouse.WHEEL_UP) {
             this.wheelDelta++;
-        } else if (game.input.mouse.wheelDelta === Phaser.Mouse.WHEEL_DOWN) {
+        } else if (pong.game.input.mouse.wheelDelta === Phaser.Mouse.WHEEL_DOWN) {
             this.wheelDelta--;
         } else {
             console.log('wheel did neither go up nor down?');
@@ -28,7 +29,7 @@ function MouseWheelPlayer(paddle, pong) {
 MouseWheelPlayer.prototype.enable = function() {
     if (this._enabled) return;
     this.wheelDelta = 0;
-    if (game.input.mouse.mouseWheelCallback) {
+    if (this.pong.game.input.mouse.mouseWheelCallback) {
         console.log('mouseWheelCallback already registered!');
     }
     this.pong.game.input.mouse.mouseWheelCallback = this.wheelListener;
@@ -37,8 +38,8 @@ MouseWheelPlayer.prototype.enable = function() {
 
 MouseWheelPlayer.prototype.disable = function() {
     if (!this._enabled) return;
-    game.input.mouse.mouseWheelCallback = null;
     this._enabled = false;
+    this.pong.game.input.mouse.mouseWheelCallback = null;
 };
 
 MouseWheelPlayer.prototype.update = function() {
@@ -137,12 +138,11 @@ ComputerPlayer.prototype.update = function() {
     var ballSprite = this.pong.ball.sprite;
     var paddleSprite = this.paddle.sprite;
     var dist = Math.abs(paddleSprite.centerY - ballSprite.centerY);
-    var speedf = this.maxSpeed * (Math.random() / 3 + 0.6667);
     if (ballSprite.bottom <= paddleSprite.top) {
-        this.paddle.move(-speedf);
+        this.paddle.move(-this.maxSpeed);
     } else if (ballSprite.top >= paddleSprite.bottom) {
-        this.paddle.move(+speedf);
-    } else if (Math.floor(Math.random() * 10) === 0) {
-        this.paddle.move(Math.floor(Math.random() * this.maxSpeed*2 - this.maxSpeed));
+        this.paddle.move(this.maxSpeed);
+    } else if (Math.floor(Math.random() * 10) === 0 && ++this._tick % 10 === 0) {
+        this.paddle.move(Math.floor(Math.random() * this.maxSpeed - this.maxSpeed/2));
     }
 };

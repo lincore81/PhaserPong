@@ -1,5 +1,12 @@
 html {
-    background-color: #332233;
+    background-color: #1f111f;
     color: #cccccc;
     font-family: monospace;
+}
+
+a {
+    color: white;
+}
+a:visited {
+    color: grey;
 }

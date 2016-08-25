@@ -1,3 +1,4 @@
+"use strict";
 module.exports = {
     Paddle: Paddle,
     Scoreboard: Scoreboard,
@@ -52,7 +53,8 @@ Paddle.prototype.getReflection = function(hit) {
  * {{{1 Scoreboard
  * Keeps track of score and displays it using sprites.
  */
-function Scoreboard(x, y, game) {
+function Scoreboard(x, y, sprite, game) {
+    this._sprite = sprite;
     this._init(x, y, game);
 }
 
@@ -60,8 +62,10 @@ Scoreboard.prototype._init = function(x, y, game) {
     this._x = x;
     this._y = y;
     this._digits = game.add.group();
-    this._tens = game.add.sprite(x, y, 'digits');
-    this._ones = game.add.sprite(x + this._tens.width, y, 'digits');
+    this._tens = game.add.sprite(x, y, this._sprite, 0);
+    var spacing = this._tens.width / 4;
+    this._ones = game.add.sprite(x + this._tens.width + spacing, y, 
+            this._sprite, 0);
     this._digits.add(this._tens);
     this._digits.add(this._ones);
     this.setScore(0);
@@ -109,7 +113,7 @@ function Ball(x, y, texture, pong) {
     this.pong = pong;
     this.initialX = x;
     this.initialY = y;
-    this.sprite = game.add.sprite(x, y, texture);
+    this.sprite = pong.game.add.sprite(x, y, texture);
     this.sprite.anchor.set(0.5, 0.5);
     this.speed = pong.speed;
     this.miny = this.sprite.height/2;
@@ -129,11 +133,9 @@ Ball.prototype.reset = function() {
 
 Ball.prototype.serve = function(side) {
     if (!side) side = Math.round(Math.random())? +1 : -1;
-    var angle = Math.floor(Math.random() * 4) - 2;
-    if (angle < 0) angle--;
-    angle *= 45;
+    var angle = this.pong.game.rnd.between(-1, 1) * 45;
+    if (side < 0) angle += 180;
     this.velocity = fromAngle(angle);
-    this.velocity.x = side < 0? -1 : +1;
     this.velocity.normalize().multiply(this.speed, this.speed);
 };
 
@@ -156,13 +158,6 @@ Ball.prototype.update = function() {
 
 
 
-//    return hit? {
-//        side: 'front', 
-//        ballPath: ballPath, 
-//        edge: paddleFront,
-//        hit: hit,
-//        player: player
-//    } : null;
 Ball.prototype.bounce = function(hitInfo) {
     var startToHit = Phaser.Point.subtract(
             hitInfo.ballPath.end,

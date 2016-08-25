@@ -1,6 +1,6 @@
 {
     "libs": ["browser"],
-    "loadEagerly": ["./out/js/phaser.js"],
+    "loadEagerly": ["./dist/js/phaser.js"],
     "plugins": {
         "node": {
             "baseURL": "./",

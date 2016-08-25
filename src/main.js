@@ -1,4 +1,7 @@
 // {{{1 Dominik's awesome Pong clone
+//
+// repository:  https://github.com/lincore81/PhaserPong
+// play:        https://lincore81.github.io/PhaserPong
 // 
 // Copyright (c) 2016 Dominik Rosehnal
 // 
@@ -20,20 +23,19 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 // 1}}}
+"use strict";
 
 var entities = require('./entities.js');
-var player = require('./player.js');
+var players = require('./players.js');
 
 var pong = main();
 var game = pong.game;
-var pixel = 8;
 
 //{{{1 main()
 function main() {
-    "use strict";
     var pong = {};
     pong.pause = false;
-    var state = {preload: preload, create: create, update: update, render: render};
+    var state = {preload: preload, create: create, update: update};
     pong.state = state;
     pong.game = new Phaser.Game(800, 480, Phaser.CANVAS, 'pong', state);
     pong.controllers = [];
@@ -46,7 +48,7 @@ function main() {
 
 //{{{1 preload()
 function preload() {
-    game.load.spritesheet('digits', 'img/digits.png', 64, 64);
+    //game.load.spritesheet('digits', 'img/digits.png', 64, 64);
     game.load.audio('wallhit', 'sound/wallhit.mp3');
     game.load.audio('paddlehit', 'sound/paddlehit.mp3');
     game.load.audio('out', 'sound/out.mp3');
@@ -55,27 +57,49 @@ function preload() {
 
 // {{{1 create()
 function create() {
-    createTextures();
-    //DEBUG: prevent pause on focus loss
-    //pong.game.stage.disableVisibilityChange = true;
-    pong.sfx = {};
-    pong.sfx.wallhit = game.add.audio('wallhit');
-    pong.sfx.paddlehit = game.add.audio('paddlehit');
-    pong.sfx.out = game.add.audio('out');
+    pong.pixel = 8;
+    createTextures(game, pong.pixel, 4, 4);
+    pong.sfx = {
+        wallhit: game.add.audio('wallhit'),
+        paddlehit: game.add.audio('paddlehit'),
+        out: game.add.audio('out')
+    };
     pong.mute = false;
+    pong.volume = 0.05;
+    pong.paused = true;
     pong.speed = 8;
 
-    var top = 2*pixel,
-        bottom = game.height - 2*pixel,
-        left = 100,
-        right = game.width - 100;
+    var top = 2 * pong.pixel
+      , bottom = game.height - 2*pong.pixel
+      , left = 100
+      , right = game.width - 100
 
-    var scoreboard1 = new entities.Scoreboard(game.width/4, top, game),
-        paddle1 = new entities.Paddle(left, top, bottom, pong.textures.paddle, game);
-    var scoreboard2 = new entities.Scoreboard(game.width/4*3 - 128, top, game),
-        paddle2 = new entities.Paddle(right, top, bottom, pong.textures.paddle, game);
-    var c1 = new player.KeyboardPlayer(paddle1, pong),
-        c2 = new player.GodPlayer(paddle2, pong);
+      , scoreboard1 = new entities.Scoreboard(
+                    game.width / 4, 
+                    top, 
+                    'digits',
+                    game)
+      , scoreboard2 = new entities.Scoreboard(
+                    game.width / 4 * 3 - 128, 
+                    top, 
+                    'digits',
+                    game)
+      , paddle1 = new entities.Paddle(
+                    left, top, bottom, 
+                    game.cache.getImage('paddle1'), 
+                    game)
+      , paddle2 = new entities.Paddle(
+                    right, top, bottom, 
+                    game.cache.getImage('paddle2'), 
+                    game)
+      , c1 = new players.KeyboardPlayer(paddle1, pong)
+      , c2 = new players.GodPlayer(paddle2, pong);
+
+    pong.ball = new entities.Ball(
+            game.width / 2, 
+            game.height / 2,
+            game.cache.getImage('ball'), 
+            pong);
 
     pong.player1 = {
         scoreboard: scoreboard1,
@@ -91,16 +115,9 @@ function create() {
     };
     pong.player1.other = pong.player2;
     pong.player2.other = pong.player1;
-    
-    pong.ball = new entities.Ball(game.width/2, game.height/2,
-                                  pong.textures.ball, pong);
-
 
     pong.controllers = [pong.ball, c1, c2];
-    c1.enable();
-    c2.enable();
-    pong.paused = false;
-    pong.ball.serve();
+     
 
     pong.playSound = function(key) {
         if (pong.mute) return;
@@ -108,7 +125,7 @@ function create() {
         if (!sound) {
             console.log('sound not found: ', key);
         } else {
-            sound.play();
+            sound.play('', 0, pong.volume);
         }
     };
 
@@ -119,6 +136,12 @@ function create() {
     muteKey.onDown.add(function(key) {
         pong.mute = !pong.mute;
     });
+
+    // finally...
+    serve();
+    c1.enable();
+    c2.enable();
+    pong.paused = false;
 }
 //1}}}
 
@@ -145,6 +168,7 @@ function update() {
 }
 //1}}}
 
+// {{{1 gameplay flow 
 // if the ball left the field, return the player who scores
 function checkMiss() {
     if (pong.ball.sprite.right < 0) return pong.player2;
@@ -154,11 +178,16 @@ function checkMiss() {
 function score(player) {
     pong.playSound('out');
     player.scoreboard.addScore();
+    serve(player.other);
+}
+
+function serve(player) {
     pong.ball.reset();
     setTimeout(function() {
-        pong.ball.serve(player.other.side);
+        pong.ball.serve(player? player.side : undefined);
     }, 1000);
 }
+// 1}}}
 
 //{{{1 hitTest()
 function hitTest() {
@@ -213,10 +242,11 @@ function hitTest() {
 }
 //1}}}
 
-
+// {{{1 debug rendering
 // render the frontal collision edge of both paddles
 var edge1 = new Phaser.Line(0, 0, 0, 0), 
     edge2 = new Phaser.Line(0, 0, 0, 0);
+
 function render() {
     if (!pong.debug) return;
     function getEdge(paddleSprite, dir, out) {
@@ -238,8 +268,8 @@ function render() {
     game.debug.geom(mid1, '#333333');
     game.debug.geom(mid2, '#333333');
 
-    var top = 2*pixel,
-        bottom = game.height - 2*pixel,
+    var top = 2*pong.pixel,
+        bottom = game.height - 2*pong.pixel,
         left = 0,
         right = game.width;
     game.debug.geom(new Phaser.Line(left, top, right, top), '0xfff');
@@ -251,40 +281,99 @@ function render() {
     game.debug.geom(collision.edge, '#00ff00');
     game.debug.geom(collision.ballPath, '#0000ff');
     game.debug.geom(collision.hit, '#ff0000');
-
 }
+//1}}}
 
+//{{{1 graphics generation
+function createTextures(game, pixelSize, paddle1HeightPx, paddle2HeightPx) {
+    var digitsData = [
+       //----|----|----|----// 4x6
+        '0000    1 2222 3333', // |
+        '0  0    1    2    3', // |
+        '0  0    1 2222 3333', // |
+        '0  0    1 2       3', // |
+        '0  0    1 2       3', // |
+        '0000    1 2222 3333', // |
+        '                   ', // -
+        '4  4 5555 6666 7777', // |
+        '4  4 5    6       7', // |
+        '4444 5555 6666    7', // |
+        '   4    5 6  6    7', // |
+        '   4    5 6  6    7', // |
+        '   4 5555 6666    7', // |
+        '                   ', // -
+        '8888 9999          ', // |
+        '8  8 9  9   *   *  ', // |
+        '8888 9999          ', // |
+        '8  8    9  *     * ', // |
+        '8  8    9   *****  ', // |
+        '8888 9999          '];// |
 
-//{{{1 createTextures()
-function createTextures() {
-    pong.textures = {};
+    var bitmap = drawBitmap(digitsData, pixelSize, '#666')
+      , frameWidth = pixelSize * 4
+      , frameHeight = pixelSize * 6
+      , spacing = pixelSize;
 
-    // paddle:
-    var g = game.add.graphics(0, 0);
+    game.cache.addSpriteSheet('digits', null, bitmap.canvas, 
+            frameWidth, frameHeight, 10, 0, spacing);
+
+    // paddle1:
+    var g = game.make.graphics(0, 0);
     g.beginFill(0xffffff);
-    g.drawRect(0, 0, pixel, 4*pixel);
+    g.drawRect(0, 0, pixelSize, paddle1HeightPx * pixelSize);
     g.endFill();
-    pong.textures.paddle = g.generateTexture();
+    game.cache.addImage('paddle1', null, g.generateTexture());
+    g.destroy();
+    
+    // paddle2:
+    g = game.make.graphics(0, 0);
+    g.beginFill(0xffffff);
+    g.drawRect(0, 0, pixelSize, paddle2HeightPx * pixelSize);
+    g.endFill();
+    game.cache.addImage('paddle2', null, g.generateTexture());
     g.destroy();
 
     // ball:
-    g = game.add.graphics(0, 0);
+    g = game.make.graphics(0, 0);
     g.beginFill(0xffffff);
-    g.drawRect(0, 0, pixel, pixel);
+    g.drawRect(0, 0, pixelSize, pixelSize);
     g.endFill();
-    pong.textures.ball = g.generateTexture();
+    game.cache.addImage('ball', null, g.generateTexture());
     g.destroy();
 
     // center line:
-    var x = (game.width - pixel) / 2;
+    var x = (game.width - pixelSize/2) / 2;
     g = game.add.graphics(x, 0);
-    var l = 2*pixel;
-    g.beginFill(0x999999);
+    var l = 2*pixelSize;
+    g.beginFill(0x666666);
     for (var y = 0; y < game.height; y += l*2) {
-        g.drawRect(0, y, pixel, l);
+        g.drawRect(0, y, pixelSize/2, l);
     }
     g.endFill();
-    
+    pong.centerLine = g;
 }
-// createTextures() 1}}}
 
+/**
+ * Assumes data to be an array of string. 
+ */
+function drawBitmap(data, pixelSize, color) {
+    var height = data.length * pixelSize
+      , width  = data[0].length * pixelSize
+      , bitmap = game.make.bitmapData(width, height)
+      , pixel  = game.make.bitmapData(pixelSize, pixelSize);
+
+    pixel.ctx.beginPath();
+    pixel.ctx.rect(0, 0, pixelSize, pixelSize);
+    pixel.ctx.fillStyle = color;
+    pixel.ctx.fill();
+
+    data.forEach(function(line, y) {
+        line.split('').forEach(function (ch, x) {
+            if (ch === ' ') return;
+            bitmap.draw(pixel, x * pixelSize, y * pixelSize);
+        });
+    });
+
+    return bitmap;
+}
+// 1}}}

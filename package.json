@@ -8,16 +8,28 @@
   },
   "scripts": {
     "lint":  "jshint src/*.js",
-    "build": "(jshint src/*.js && browserify -e src/main.js -do dist/js/game.js) || echo -e \"\bError.\"",
+    "build": "(jshint src/*.js && browserify -e src/main.js -do dist/js/game.js) || echo \"\bError.\"",
     "watch": "npm-watch",
-    "test":  "tape"
+    "test":  ""
   },
   "author": "Dominik Rosehnal",
   "license": "MIT",
   "devDependencies": {
     "browserify": "^13.0.1",
     "jshint": "^2.9.2",
-    "lodash": "^4.12.0",
-    "tape": "^4.5.1"
+  },
+  "jshintConfig": {
+      "browser": true,
+      "browserify": true,
+      "devel": true,
+      "eqeqeq": true,
+      "esversion": 5,
+      "freeze": true,
+      "laxcomma": true,
+      "strict": "global",
+      "undef": true,
+      "predef": [
+          "Phaser"
+      ]
   }
 }

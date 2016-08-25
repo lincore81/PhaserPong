@@ -1,8 +1,9 @@
 This is a pong implementation done using the Phaser game engine/framework:
 http://phaser.io
 
-The package.json is not super accurate, I only use browserify atm, phaser.js
-is already located in dist/js/.
+repository: https://github.com/lincore81/PhaserPong  
+game:       https://lincore81.github.io/PhaserPong/
+
 
 LICENSE(MIT):
 
